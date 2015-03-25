@@ -8,3 +8,5 @@ http://forum.arduino.cc/index.php?topic=281788.0
 
 http://forum.arduino.cc/index.php?topic=266686.0 <-- this ones good
 
+http://robotics.stackexchange.com/questions/2147/how-can-i-interface-my-cmos-camera-module-to-an-arduino <-- the answer #1
+
