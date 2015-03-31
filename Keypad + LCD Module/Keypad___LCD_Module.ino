@@ -43,17 +43,17 @@ void process_the_key(char key_pressed){
       displayHome(0);
       break;
    case '3' :
-      displayAccessStatus(0,0);
+      displayAccessGranted(0);
       break;
    case '4' :
-      displayAccessStatus(0,1);
+      displayAccessGranted(1);
       break;
    case '5' :
-      displayAccessStatus(1,0);
+      displayAccessDenied();
       break;
    case '6' :
-      displayAccessStatus(1,1);
-      break;
+     displayHome(1);
+     break;
    default :
       lcd.write(" INVALID CODE! ");
    } 
@@ -81,16 +81,9 @@ void displayHome(boolean alarmState) {
 }
 
 
-void displayAccessStatus(boolean codeCheck, boolean systemState) {
+void displayAccessGranted(boolean systemState) {
   lcd.clear();
-  lcd.setCursor(0, 0);
-
-  if(codeCheck) {
-    lcd.print("ACCESS GRANTED");
-  } else {
-    lcd.print("ACCESS DENIED");
-  }
-
+  lcd.print("CODE ACCEPTED");
   lcd.setCursor(0, 1);
 
   if(systemState) {
@@ -98,4 +91,12 @@ void displayAccessStatus(boolean codeCheck, boolean systemState) {
   } else {
     lcd.print("SYSTEM DISARMED");
   }
+}
+
+
+void displayAccessDenied() {
+  lcd.clear();
+  lcd.print("INVALID CODE");
+  lcd.setCursor(0, 1);
+  lcd.print("ACCESS DENIED");
 }
