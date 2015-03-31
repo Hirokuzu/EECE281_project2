@@ -1,61 +1,63 @@
-#include <LiquidCrystal.h>
 #include <Keypad.h>
+#include <LiquidCrystal.h>
 
-LiquidCrystal lcd(13, 12, 11, 10, 9, 8);
-//Pin order:      RS E D4 D5 D6 D7
+LiquidCrystal lcd(13, 12, 11, 10, 9, 8); 
+// RS E D4 D5 D6 D7
 
-// const byte rows = 4; //Keypad has 4 rows
-// const byte cols = 3; //and 3 columns
-// const int LOOP_DELAY = 100;
+const byte ROWS = 4; //four rows
+const byte COLS = 3; //three columns
 
-// char keys[rows][cols] = { //@TODO: Try with ints instead
-//   {'1','2','3'},
-//   {'4','5','6'},
-//   {'7','8','9'},
-//   {'#','0','*'}
-// };
-// byte rowPins[rows] = {6, 4, 3, 2}; //Keypad row pins = {2, 7, 6, 4}
-// byte colPins[cols] = {4, 7, 6}; //Keypad column pins = {3, 1, 5}
-// Keypad keypad = Keypad( makeKeymap(keys), rowPins, colPins, rows, cols );
+char keys[ROWS][COLS] = {
+  {'1','2','3'},
+  {'4','5','6'},
+  {'7','8','9'},
+  {'#','0','*'}
+};
 
-// char numReceived;
+byte rowPins[ROWS] = {6, A0, 2, 4}; //connect to the row pinouts of the keypad
+byte colPins[COLS] = {5, 7, 3}; //connect to the column pinouts of the keypad
 
+Keypad keypad = Keypad( makeKeymap(keys), rowPins, colPins, ROWS, COLS );
 
 void setup(){
-  //Serial.begin(9600);
-  // keypad.addEventListener(keypadEvent); //Run keypadEvent() when a key is pressed
   lcd.begin(16, 2);
+  Serial.begin(9600);
 }
 
+void loop(){
+  char key = keypad.getKey();
 
-void loop() {
-  // char numReceived = keypad.getKey(); //@TODO: Move to keypadEvent() if possible
-  
-  // Serial.print("Key pressed was ");
-  // Serial.println(numReceived);
-  
-  // delay(LOOP_DELAY);
-  displayAlarmBreach();
-  delay(3000);
-  displayHome(0);
-  delay(3000);
-  displayHome(1);
-  delay(3000);
-  displayAccessStatus(0,0);
-  delay(3000);
-  displayAccessStatus(0,1);
-  delay(3000);
-  displayAccessStatus(1,1);
-  delay(3000);
-  displayAccessStatus(1,0);
-  delay(3000);
+  if (key != NO_KEY){
+    Serial.println(key);
+    lcd.clear();
+    process_the_key(key);
+  }
 }
 
-
-// void keypadEvent(KeypadEvent key){
-//   //@TODO: Put receive keys here?
-// }
-
+void process_the_key(char key_pressed){
+  switch(key_pressed){
+   case '1' :
+      displayAlarmBreach();
+      break;
+   case '2' :
+      displayHome(0);
+      break;
+   case '3' :
+      displayAccessStatus(0,0);
+      break;
+   case '4' :
+      displayAccessStatus(0,1);
+      break;
+   case '5' :
+      displayAccessStatus(1,0);
+      break;
+   case '6' :
+      displayAccessStatus(1,1);
+      break;
+   default :
+      lcd.write(" INVALID CODE! ");
+   } 
+}
 
 void displayAlarmBreach() {
   lcd.clear();
