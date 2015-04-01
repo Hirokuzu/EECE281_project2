@@ -2,6 +2,8 @@
 #include <Keypad.h>
 #include <LiquidCrystal.h>
 
+boolean isSystemArmed = false;  // GLOBAL FLAG TO MAKE KEEP TRACK OF SYSTEM STATE, ON OR OFF
+
 Password password = Password( "4321" );
 
 LiquidCrystal lcd(13, 12, 11, 10, 9, 8); 
@@ -23,24 +25,25 @@ byte entryIndex = 0; //Indicates how many keys user has entered
 
 Keypad keypad = Keypad( makeKeymap(keys), rowPins, colPins, ROWS, COLS );
 
-
 void setup() {
   lcd.begin(16, 2);
   Serial.begin(9600);
   keypad.addEventListener(keypadEvent); //add an event listener for this keypad
-  keypad.setDebounceTime(100);
+  keypad.setDebounceTime(50);
+  welcomeMessage();
+  displayHome();
 }
-
 
 void loop() {
   keypad.getKey();
 }
 
-
 //Parses key inputs once a key is pressed
 void keypadEvent(KeypadEvent eKey){
   switch (keypad.getState()){
     case PRESSED:
+      if(entryIndex == 0)
+        lcd.clear();
       switch (eKey){
         case '#': 
           checkPassword();
@@ -52,84 +55,100 @@ void keypadEvent(KeypadEvent eKey){
             displayPrependedCode(entryIndex); //Removes the last key from the display
             password.prepend();
           }
+          else {
+            displayHome();
+          }
         break;
         default:
           lcd.print("*");
           password.append(eKey);
           entryIndex++;
       }
-  }
+      break;
+    case HOLD:
+       if (eKey == '*'){
+         password.reset();
+         entryIndex = 0;
+         displayHome();
+       }
+  } // END OF OUTER SWITCH STATEMENT
 }
 
 
 void checkPassword(){
-  if (password.evaluate()){
-    lcd.clear();
-    lcd.print("VALID PASSWORD "); //
-    password.reset(); //resets password after correct entry
-    delay(1000);
-    lcd.setCursor(0, 1);
-    lcd.print("Welcome home");
-    delay(2000);
-    lcd.clear();
+  if (password.evaluate()){ 
+    acceptPassword(); // accept password and toggle system state
+    password.reset(); //resets password
+    delay(1000);      // keep accepted password mesage for 1 second
   } else {
-    lcd.clear();
-    lcd.print("INVALID PASSWORD");
+    denyPassword();
     password.reset(); //resets password after INCORRECT entry
-    delay(2000);
-    lcd.clear();
+    delay(1000);      // keep denied password mesage for 1 second
   }
+  displayHome();
 }
-
 
 void displayPrependedCode(byte codeIndex) {
   lcd.clear();
-
   for(byte i = 1; i <= codeIndex; i++) {
     lcd.print("*");
   }
 }
 
-
-void displayAlarmBreach() {
+void triggerAlarm() {
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("ALARM TRIGGERED");
   lcd.setCursor(0, 1);
   lcd.print("CALL 911");
+  //TRIGGER ALARM SOUNDS AND FLASH LIGHTS FUNCTION
 }
 
-
-void displayHome(boolean alarmState) {
+void displayHome() {
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Security System");
   lcd.setCursor(0, 1);
   
-  if(alarmState) {
-    lcd.print("Alarm: ON");
+  if(isSystemArmed) {
+    lcd.print("System: Active");
+    // CALL ACTIVATE ALL SENSORS NOW FUNCTION
   } else {
-    lcd.print("Alarm: OFF");
+    lcd.print("System: Inactive");
+    // CALL DEACTIVATE ALL SENSORS NOW FUNCTION
   }
 }
 
-
-void displayAccessGranted(boolean systemState) {
+void acceptPassword() {
   lcd.clear();
-  lcd.print("CODE ACCEPTED");
+  lcd.print("PASSWORD VALID");
   lcd.setCursor(0, 1);
 
-  if(systemState) {
+  if(!isSystemArmed) {
     lcd.print("SYSTEM ARMED");
+    isSystemArmed = !isSystemArmed; // toggle the system state from off to on
   } else {
     lcd.print("SYSTEM DISARMED");
+    isSystemArmed = !isSystemArmed;
   }
 }
 
-
-void displayAccessDenied() {
+void denyPassword() {
   lcd.clear();
-  lcd.print("INVALID CODE");
+  lcd.print("PASSWORD INVALID");
   lcd.setCursor(0, 1);
   lcd.print("ACCESS DENIED");
+}
+
+void welcomeMessage(){
+  lcd.clear();
+  lcd.print("  EECE 281 L2C");
+  lcd.setCursor(0, 1);
+  lcd.print("   PROJECT 2");
+  delay(1500);
+  lcd.clear();
+  lcd.print("   Hope you   ");
+  lcd.setCursor(0, 1);
+  lcd.print("  like it! :) ");
+  delay(2000);
 }
