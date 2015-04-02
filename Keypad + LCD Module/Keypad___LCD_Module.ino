@@ -42,8 +42,11 @@ void loop() {
 void keypadEvent(KeypadEvent eKey){
   switch (keypad.getState()){
     case PRESSED:
-      if(entryIndex == 0)
+      if(entryIndex == 0){
         lcd.clear();
+        lcd.print("Entering code:");
+        lcd.setCursor(0, 1);
+      }
       switch (eKey){
         case '#': 
           checkPassword();
@@ -89,8 +92,9 @@ void checkPassword(){
 }
 
 void displayPrependedCode(byte codeIndex) {
-  lcd.clear();
-  for(byte i = 1; i <= codeIndex; i++) {
+  lcd.setCursor(0, 1);
+  lcd.print("                ");
+  lcd.setCursor(0, 1);  for(byte i = 1; i <= codeIndex; i++) {
     lcd.print("*");
   }
 }
