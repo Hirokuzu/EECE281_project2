@@ -2,15 +2,15 @@
 #include <Keypad.h>
 #include <LiquidCrystal.h>
 
-boolean isSystemArmed = false;  // GLOBAL FLAG TO MAKE KEEP TRACK OF SYSTEM STATE, ON OR OFF
+boolean isSystemArmed = false; //Global flag for alarm state
 
 Password password = Password( "4321" );
 
 LiquidCrystal lcd(13, 12, 11, 10, 9, 8); 
 //                RS E D4 D5 D6 D7
 
-const byte ROWS = 4; //four rows
-const byte COLS = 3; //three columns
+const byte ROWS = 4; //Four rows
+const byte COLS = 3; //Three columns
 
 char keys[ROWS][COLS] = {
   {'1','2','3'},
@@ -19,96 +19,93 @@ char keys[ROWS][COLS] = {
   {'*','0','#'}
 };
 
-byte rowPins[ROWS] = {6, A0, 2, 4}; //connect to the row pinouts of the keypad
-byte colPins[COLS] = {5, 7, 3}; //connect to the column pinouts of the keypad
+byte rowPins[ROWS] = {6, A0, 2, 4}; //Connected to the row pinouts of the keypad
+byte colPins[COLS] = {5, 7, 3}; //Connected to the column pinouts of the keypad
 byte entryIndex = 0; //Indicates how many keys user has entered
 
 Keypad keypad = Keypad( makeKeymap(keys), rowPins, colPins, ROWS, COLS );
 
+
 void setup() {
   lcd.begin(16, 2);
   Serial.begin(9600);
-  keypad.addEventListener(keypadEvent); //add an event listener for this keypad
+  keypad.addEventListener(keypadEvent); //Adds an event listener for this keypad
   keypad.setDebounceTime(50);
-  welcomeMessage();
-  displayHome();
+  displayWelcomeMessage();
+  displayHomePage();
 }
+
 
 void loop() {
   keypad.getKey();
 }
+
 
 //Parses key inputs once a key is pressed
 void keypadEvent(KeypadEvent eKey){
   switch (keypad.getState()){
     case PRESSED:
       if(entryIndex == 0){
-        lcd.clear();
-        lcd.print("Entering code:");
-        lcd.setCursor(0, 1);
+        displayPasscodePrompt();
       }
       switch (eKey){
         case '#': 
-          checkPassword();
-          entryIndex = 0; 
+          entryIndex = 0;
+          checkPassword(); 
         break;
         case '*':
           if(entryIndex != 0) {
             entryIndex--;
             displayPrependedCode(entryIndex); //Removes the last key from the display
             password.prepend();
-          }
-          else {
-            displayHome();
+          } else {
+            displayHomePage();
           }
         break;
         default:
-          lcd.print("*");
-          password.append(eKey);
-          entryIndex++;
+          if(entryIndex <= 16) {
+            entryIndex++;
+            lcd.print("*");
+            password.append(eKey);
+          }
       }
       break;
     case HOLD:
        if (eKey == '*'){
-         password.reset();
          entryIndex = 0;
-         displayHome();
+         password.reset();
+         displayHomePage();
        }
-  } // END OF OUTER SWITCH STATEMENT
+  }
 }
 
 
+//Checks password and toggles alarm state if correct
 void checkPassword(){
   if (password.evaluate()){ 
-    acceptPassword(); // accept password and toggle system state
-    password.reset(); //resets password
-    delay(1000);      // keep accepted password mesage for 1 second
+    displayPasscodeAccepted();
+    password.reset();
+    isSystemArmed = !isSystemArmed; //Toggle alarm state
   } else {
-    denyPassword();
-    password.reset(); //resets password after INCORRECT entry
-    delay(1000);      // keep denied password mesage for 1 second
+    displayPasscodeRejected();
+    password.reset();
   }
-  displayHome();
+  displayHomePage();
 }
+
 
 void displayPrependedCode(byte codeIndex) {
   lcd.setCursor(0, 1);
-  lcd.print("                ");
-  lcd.setCursor(0, 1);  for(byte i = 1; i <= codeIndex; i++) {
+  lcd.print("                "); //Clears first row only
+  lcd.setCursor(0, 1);
+
+  for(byte i = 1; i <= codeIndex; i++) {
     lcd.print("*");
   }
 }
 
-void triggerAlarm() {
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("ALARM TRIGGERED");
-  lcd.setCursor(0, 1);
-  lcd.print("CALL 911");
-  //TRIGGER ALARM SOUNDS AND FLASH LIGHTS FUNCTION
-}
 
-void displayHome() {
+void displayHomePage() {
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Security System");
@@ -116,43 +113,61 @@ void displayHome() {
   
   if(isSystemArmed) {
     lcd.print("System: Active");
-    // CALL ACTIVATE ALL SENSORS NOW FUNCTION
   } else {
     lcd.print("System: Inactive");
-    // CALL DEACTIVATE ALL SENSORS NOW FUNCTION
   }
 }
 
-void acceptPassword() {
+
+void displayPasscodePrompt() {
   lcd.clear();
-  lcd.print("PASSWORD VALID");
+  lcd.print("Enter passcode:");
+  lcd.setCursor(0, 1);
+}
+
+
+void displayPasscodeAccepted() {
+  lcd.clear();
+  lcd.print("PASSCODE VALID");
   lcd.setCursor(0, 1);
 
-  if(!isSystemArmed) {
-    lcd.print("SYSTEM ARMED");
-    isSystemArmed = !isSystemArmed; // toggle the system state from off to on
-  } else {
+  if(isSystemArmed) {
     lcd.print("SYSTEM DISARMED");
-    isSystemArmed = !isSystemArmed;
+  } else {
+    lcd.print("SYSTEM ARMED");
   }
+
+  delay(1000);
 }
 
-void denyPassword() {
+
+void displayPasscodeRejected() {
   lcd.clear();
-  lcd.print("PASSWORD INVALID");
+  lcd.print("PASSCODE INVALID");
   lcd.setCursor(0, 1);
   lcd.print("ACCESS DENIED");
+  delay(1000);
 }
 
-void welcomeMessage(){
+
+void displayAlarmTriggered() {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("ALARM TRIGGERED");
+  lcd.setCursor(0, 1);
+  lcd.print("CALL 911");
+}
+
+
+void displayWelcomeMessage(){
   lcd.clear();
   lcd.print("  EECE 281 L2C");
   lcd.setCursor(0, 1);
-  lcd.print("   PROJECT 2");
+  lcd.print("    PROJECT 2");
   delay(1500);
   lcd.clear();
-  lcd.print("   Hope you   ");
+  lcd.print("    Hope you");
   lcd.setCursor(0, 1);
-  lcd.print("  like it! :) ");
+  lcd.print("   like it! :)");
   delay(2000);
 }
