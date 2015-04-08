@@ -63,9 +63,6 @@ void loop() {
 void keypadEvent(KeypadEvent eKey){
   switch (keypad.getState()) {
     case PRESSED:
-      if(entryIndex == 0) {
-        displayPasscodePrompt();
-      }
       switch (eKey){
         case '#': //"Enter" key
           entryIndex = 0;
@@ -75,7 +72,7 @@ void keypadEvent(KeypadEvent eKey){
         case '*': //"Backspace" key
           if(entryIndex != 0) {
             entryIndex--;
-            displayPrependedCode(); //Removes the last key from the display
+            displayPasscodePrompt();
             password.prepend();
           } else {
             displayHomePage();
@@ -84,7 +81,7 @@ void keypadEvent(KeypadEvent eKey){
         default:
           if(entryIndex <= 16) {
             entryIndex++;
-            lcd.print("*");
+            displayPasscodePrompt();
             password.append(eKey);
           }
       }
@@ -104,12 +101,12 @@ void checkPassword(){
   if (password.evaluate()){ 
     displayPasscodeAccepted();
     password.reset();
-    incorrectAttempts = 0;
 
     if(!isSystemBreached) {
       isSystemArmed = !isSystemArmed; //Toggle alarm state
     }
 
+    incorrectAttempts = 0;
     isSystemBreached = 0;
   } else {
     displayPasscodeRejected();
@@ -120,8 +117,6 @@ void checkPassword(){
       isSystemBreached = 1;
       incorrectAttempts = 0;
     }
-
-    Serial.println(incorrectAttempts);
   }
 }
 
@@ -134,13 +129,6 @@ void setRgbLed(boolean rState, boolean gState, boolean bState) {
 
 
 void displayPrependedCode() {
-  lcd.setCursor(0, 1);
-  lcd.print("                "); //Clears second row only
-  lcd.setCursor(0, 1);
-
-  for(byte i = 1; i <= entryIndex; i++) {
-    lcd.print("*");
-  }
 }
 
 
@@ -169,6 +157,12 @@ void displayPasscodePrompt() {
   lcd.clear();
   lcd.print("Enter passcode:");
   lcd.setCursor(0, 1);
+  lcd.print("                "); //Clears second row only
+  lcd.setCursor(0, 1);
+
+  for(byte i = 1; i <= entryIndex; i++) {
+    lcd.print("*");
+  }
 }
 
 
