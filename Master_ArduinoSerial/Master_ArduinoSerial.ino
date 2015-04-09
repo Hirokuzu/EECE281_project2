@@ -10,6 +10,7 @@
 /* PIN ASSIGNMENTS */
 const int ECHO_PIN = A0; //TO BE CHANGED 
 const int TRIG_PIN = A1;
+const int door = 2;
 const int IRQ = 3; //Wifi constants
 const int CS_SD = 4;
 const int VBAT = 5;
@@ -55,6 +56,7 @@ Keypad keypad = Keypad( makeKeymap(keys), rowPins, colPins, ROWS, COLS );
 
 void setup()
 {
+  pinMode(door, INPUT);
   pinMode(CS, OUTPUT);
   pinMode(ECHO_PIN,INPUT);
   pinMode(TRIG_PIN, OUTPUT);
@@ -173,20 +175,25 @@ void loop()
     keypad.getKey();
     
     if(isSystemBreached) {
-        Serial.println(''); //WHAT TO SEND TO SERIAL !??!?!!?!
-        activateAlarm();
+        Serial.println('3');
     } else if(isSystemArmed) {
         float distRead = getDistance();
     
         if (distRead <= MIN_DISTANCE) {
           isSystemBreached = true;
-          Serial.print("Door is opened. Distance is: ");
+          Serial.print("Window is opened. Distance is: ");
           Serial.println(distRead);
         }
         else {
-          Serial.print("Door is closed. Distance is: ");
+          Serial.print("Window is closed. Distance is: ");
           Serial.println(distRead);
         }    
+        
+        if (door == LOW) {
+          isSystemBreached = true;
+          Serial.print("Door is opened.");
+          Serial.println('3');
+        }
     }
       
 //****TESTS for MASTER-SLAVE communication****//
