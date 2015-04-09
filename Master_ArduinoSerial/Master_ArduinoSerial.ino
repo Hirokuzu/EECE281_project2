@@ -1,8 +1,7 @@
 //Libraries for Wifi & Keypad. Statuses should listen to Door/Keypad/US/HTTP(CC3000); send status to slave
 #include <stdio.h>
-#include <string.h>
 #include <Adafruit_CC3000.h>
-#include "utility/debug.h"
+//#include "utility/debug.h" //took off for space, seems to be only used for freeram()
 #include <Password.h>
 #include <Keypad.h>
 #include <SPI.h>
@@ -30,7 +29,7 @@ byte incorrectAttempts = 0;
 
 //Wifi setup
 Adafruit_CC3000 cc3000 = Adafruit_CC3000(CS, IRQ, VBAT, SPI_CLOCK_DIVIDER);
-#define WLAN_SSID       "EECE281_Group10"
+#define WLAN_SSID       "EECE281_Group7"
 #define WLAN_PASS       "carrots281"
 #define WLAN_SECURITY   WLAN_SEC_WPA2 //either WLAN_SEC_UNSEC, WLAN_SEC_WEP, WLAN_SEC_WPA or WLAN_SEC_WPA2
 
@@ -65,11 +64,10 @@ void setup()
   digitalWrite(CS, HIGH); //ensure SS stays high for now
 
   keypad.addEventListener(keypadEvent); //Adds an event listener for this keypad
-  keypad.setDebounceTime(50);
-  
-  Serial.println(F("Group 10's Home Security System!\n")); 
+  keypad.setDebounceTime(50); 
 
-  Serial.print("Free RAM: "); Serial.println(getFreeRam(), DEC);
+  //Serial.print("Free RAM: "); 
+  //Serial.println(getFreeRam(), DEC);
   //Initialize
   Serial.println("Initializing CC3000...");
   if (!cc3000.begin())
@@ -79,15 +77,15 @@ void setup()
   }
   
   //Delete old connection data on CC3000
-  Serial.println(F("Deleting old connection profiles"));
+  //Serial.println(F("Deleting old connection profiles"));
   if (!cc3000.deleteProfiles()) {
-    Serial.println(F("Failed"));
+    //Serial.println(F("Failed"));
     while(1);
   }
   
   //Connect to WiFi
   char *ssid = WLAN_SSID;             /* Max 32 chars */
-  Serial.print(F("Attempting to connect to ")); 
+  //Serial.print(F("Attempting to connect to ")); 
   Serial.println(ssid);
   
   if (!cc3000.connectToAP(WLAN_SSID, WLAN_PASS, WLAN_SECURITY)) {
@@ -99,7 +97,7 @@ void setup()
   Serial.println(ssid);
   
   /* Wait for DHCP to complete */
-  Serial.println(F("Request DHCP"));
+  //Serial.println(F("Request DHCP"));
   while (!cc3000.checkDHCP())
   {
     delay(100); // ToDo: Insert a DHCP timeout!
@@ -216,6 +214,7 @@ int request(Adafruit_CC3000_ClientRef cl)
     String one_req = "1";
     String two_req = "2";
     String three_req = "3";
+    String four_req = "4";
     
     if (myreq.compareTo(init_req) == 0) {
        html_login(cl);
@@ -242,13 +241,18 @@ int request(Adafruit_CC3000_ClientRef cl)
           }
           else if (myreq.substring(9).compareTo(two_req) == 0) {
             isSystemArmed = true;
-            Serial.println(F("System is armed."));
             html_update(cl);
             return 0;
           }
           else if (myreq.substring(9).compareTo(three_req) == 0) {
             isSystemBreached = false;
             Serial.println(F("Alarm turned off."));
+            html_update(cl);
+            return 0;
+          }
+          else if (myreq.substring(9).compareTo(four_req) == 0) {
+            Serial.println("p");
+            Serial.println(F("A picture has been taken."));
             html_update(cl);
             return 0;
           }
@@ -262,7 +266,6 @@ String parserequest() {
   String get = "GET";
   String req;
   if (HTTP_req.startsWith(get)) {
-    //Serial.println(F("Received a GET tag from client"));
     for (j=4;j<HTTP_req.indexOf('\n');j++) { //less than 20 for now, find suitable value
        if (HTTP_req[j] == ' '){
          break;
@@ -270,10 +273,7 @@ String parserequest() {
        req += HTTP_req[j];
     }
     return req;
-  }
-  else {
-    Serial.println(F("Did not receive a GET tag"));  
-  }  
+  } 
 }
 
 //html pages
@@ -305,6 +305,7 @@ void html_update(Adafruit_CC3000_ClientRef myclient){
   myclient.fastrprintln(F("<p>1 = update status</p>"));
   myclient.fastrprintln(F("<p>2 = arm the system</p>"));
   myclient.fastrprintln(F("<p>3 = turn off alarm</p>"));
+  myclient.fastrprintln(F("<p>4 = take a picture with my security camera</p>"));
 }
 
 void html_wrongpass(Adafruit_CC3000_ClientRef myclient) {
@@ -327,16 +328,10 @@ bool displayConnectionDetails(void)
   }
   else
   {
-    Serial.print(F("\nIP Addr: ")); cc3000.printIPdotsRev(ipAddress);
-    Serial.print(F("\nNetmask: ")); cc3000.printIPdotsRev(netmask);
-    Serial.print(F("\nGateway: ")); cc3000.printIPdotsRev(gateway);
-    Serial.print(F("\nDHCPsrv: ")); cc3000.printIPdotsRev(dhcpserv);
-    Serial.print(F("\nDNSserv: ")); cc3000.printIPdotsRev(dnsserv);
-    Serial.println();
+    Serial.print(F("lcd:IP Addr: ")); cc3000.printIPdotsRev(ipAddress);
     return true;
   }
 }
-
 
 //Parses key inputs once a key is pressed
 void keypadEvent(KeypadEvent eKey){
@@ -398,7 +393,6 @@ void checkPassword(){
     }
   }
 }
-
 
 float getDistance() {
   float echoTime; //time of pulse in microseconds
