@@ -1,7 +1,9 @@
 #include <Password.h>
 #include <Keypad.h>
 #include <LiquidCrystal.h>
+#include <Wire.h>
 
+boolean priority = false;
 boolean isSystemArmed = false; //Global flag for alarm state
 boolean isSystemBreached = false; //Global flag for alarm breach
 byte entryIndex = 0; //Indicates how many keys user has entered
@@ -38,6 +40,7 @@ void setup() {
   pinMode(RGB_LED_PING, OUTPUT);
   pinMode(RGB_LED_PINB, OUTPUT);
   lcd.begin(16, 2);
+  Wire.begin();
   Serial.begin(9600);
   keypad.addEventListener(keypadEvent); //Adds an event listener for this keypad
   keypad.setDebounceTime(50);
@@ -49,13 +52,70 @@ void setup() {
 void loop() {
   keypad.getKey();
 
-  if(isSystemBreached) {
-    setRgbLed(ON, OFF, OFF);
-  } else if(isSystemArmed) {
-    setRgbLed(OFF, ON, OFF);
+  // requestStatus();
+
+  priority = !priority;
+  Serial.print("Priority is now: ");
+  Serial.println(priority);
+  isSystemArmed = false;
+  isSystemBreached = false;
+  sendStatus();
+
+  isSystemArmed = true;
+  isSystemBreached = false;
+  sendStatus();
+
+  isSystemArmed = false;
+  isSystemBreached = true;
+  sendStatus();
+
+  isSystemArmed = true;
+  isSystemBreached = true;
+  sendStatus();
+
+  // if(isSystemBreached) {
+  //   setRgbLed(ON, OFF, OFF);
+  // } else if(isSystemArmed) {
+  //   setRgbLed(OFF, ON, OFF);
+  // } else {
+  //   setRgbLed(OFF, OFF, ON);
+  // }
+}
+
+
+void requestStatus() {
+  Wire.requestFrom(2, 3);
+  boolean priority_r = Wire.read();
+  Serial.println("Status received.");
+
+  if(priority_r) {
+    isSystemArmed = Wire.read();
+    isSystemBreached = Wire.read();
+    Serial.println("High priority detected. Status changed.");
+    Serial.print("isSystemArmed is now: ");
+    Serial.println(isSystemArmed);
+    Serial.print("isSystemBreached is now: ");
+    Serial.println(isSystemBreached);
   } else {
-    setRgbLed(OFF, OFF, ON);
+    boolean isSystemArmed_r = Wire.read();
+    boolean isSystemBreached_r = Wire.read();
+    Serial.println("High priority detected. Status changed.");
+    Serial.print("isSystemArmed is still: ");
+    Serial.println(isSystemArmed);
+    Serial.print("isSystemBreached is still: ");
+    Serial.println(isSystemBreached);
   }
+}
+
+
+void sendStatus() {
+  Wire.beginTransmission(2);
+  Wire.write(priority);
+  Wire.write(isSystemArmed);
+  Wire.write(isSystemBreached);
+  priority = false;
+  Wire.endTransmission();
+  Serial.println("Status sent.");
 }
 
 
@@ -107,14 +167,15 @@ void checkPassword(){
     }
 
     incorrectAttempts = 0;
-    isSystemBreached = 0;
+    isSystemBreached = false;
   } else {
     displayPasscodeRejected();
     password.reset();
     incorrectAttempts++;
 
     if(incorrectAttempts >= 3) {
-      isSystemBreached = 1;
+      priority = true;
+      isSystemBreached = true;
       incorrectAttempts = 0;
     }
   }
