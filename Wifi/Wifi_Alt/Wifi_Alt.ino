@@ -2,11 +2,13 @@
 #include <string.h>
 #include <Adafruit_CC3000.h>
 #include <SPI.h>
-#include "utility/debug.h"
+#include <SD.h>
+#include <Wire.h>
+#define SS_SD 10
 
-const int IRQ = 3;
-const int VBAT = 5;
-const int CS = 10;
+const byte IRQ = 3;
+const byte VBAT = 5;
+const byte CS = 10;
 Adafruit_CC3000 cc3000 = Adafruit_CC3000(CS, IRQ, VBAT, SPI_CLOCK_DIVIDER);
 #define WLAN_SSID       "EECE281_Group7"
 #define WLAN_PASS       "carrots281"
@@ -24,43 +26,39 @@ String pass = "group10";
 void setup()
 {
   Serial.begin(9600);
-  Serial.println(F("Hello, CC3000!\n")); 
+  
+  SD.begin(SS_SD);
 
-  Serial.print(F("Free RAM: ")); 
-  Serial.println(getFreeRam(), DEC);
   //Initialize
-  Serial.println(F("Initializing CC3000..."));
-  if (!cc3000.begin())
+  //Serial.println(F("Initializing CC3000..."));
+  cc3000.begin();
+  /*if (!cc3000.begin())
   {
     Serial.println(F("Initializing failed"));
     while(1);
-  }
+  }*/
   
   //Delete old connection data on CC3000
-  Serial.println(F("Deleting old connection profiles"));
+  cc3000.deleteProfiles();
+  /*Serial.println(F("Deleting old connection profiles"));
   if (!cc3000.deleteProfiles()) {
     Serial.println(F("Failed"));
     while(1);
-  }
+  }*/
   
   //Connect to WiFi
   char *ssid = WLAN_SSID;             /* Max 32 chars */
-  Serial.print(F("Attempting to connect to ")); 
-  Serial.println(ssid);
   
-  if (!cc3000.connectToAP(WLAN_SSID, WLAN_PASS, WLAN_SECURITY)) {
+  cc3000.connectToAP(WLAN_SSID, WLAN_PASS, WLAN_SECURITY);
+  /*if (!cc3000.connectToAP(WLAN_SSID, WLAN_PASS, WLAN_SECURITY)) {
     Serial.println(F("Failed"));
     while(1);
-  }
-   
-  Serial.print(F("Connected to "));
-  Serial.println(ssid);
+  }*/
   
   /* Wait for DHCP to complete */
-  Serial.println(F("Request DHCP"));
   while (!cc3000.checkDHCP())
   {
-    delay(100); // ToDo: Insert a DHCP timeout!
+    delay(100); 
   }  
   
   // Display the IP address DNS, Gateway, etc.
@@ -68,9 +66,7 @@ void setup()
     delay(1000);
   }
   
-  server.begin();
-  Serial.println(F("Listening for connections..."));
-  
+  server.begin();  
 } //-------------------------------------------------------------------------------------------------END OF SETUP
 
 void loop()
@@ -86,8 +82,8 @@ void loop()
                 // last line of client request is blank and ends with \n
                 // respond to client only after last line received
                 if (c == '\n' && currentLineIsBlank) {
-                    client.fastrprintln(F("HTTP/1.1 200 OK"));
-                    client.fastrprintln(F("Content-Type: text/html"));
+                    client.fastrprintln(F("HTTP/1.1 200 OK\nContent-Type: text/html\nConnection: close\n\n<!DOCTYPE html>\n<html>\n<head>\n<title>EECE281 Project2\n</head>\n<body>\n<h1>My Alarm System</h1>"));
+                    /*client.fastrprintln(F("Content-Type: text/html"));
                     client.fastrprintln(F("Connection: close"));
                     client.println();
                     client.fastrprintln(F("<!DOCTYPE html>"));
@@ -96,10 +92,10 @@ void loop()
                     client.fastrprintln(F("<title>EECE 281 Project 2</title>"));
                     client.fastrprintln(F("</head>"));
                     client.fastrprintln(F("<body>"));
-                    client.fastrprintln(F("<h1>My Alarm System</h1>"));
+                    client.fastrprintln(F("<h1>My Alarm System</h1>"));*/
                     request(client); // -------------------------------------------------------------add formated message
-                    client.fastrprintln(F("</body>"));
-                    client.fastrprintln(F("</html>"));
+                    client.fastrprintln(F("</body>\n</html>"));
+                    //client.fastrprintln(F("</html>"));
                     HTTP_req = "";
                     break;
                 }
@@ -124,28 +120,28 @@ void loop()
 bool displayConnectionDetails(void)
 {
   uint32_t ipAddress, netmask, gateway, dhcpserv, dnsserv;
-  
-  if(!cc3000.getIPAddress(&ipAddress, &netmask, &gateway, &dhcpserv, &dnsserv))
+  cc3000.getIPAddress(&ipAddress, &netmask, &gateway, &dhcpserv, &dnsserv);
+  /*if(!cc3000.getIPAddress(&ipAddress, &netmask, &gateway, &dhcpserv, &dnsserv))
   {
     Serial.println(F("Unable to retrieve the IP Address!\r\n"));
     return false;
   }
   else
-  {
-    Serial.print(F("\nIP Addr: ")); cc3000.printIPdotsRev(ipAddress);
-    Serial.print(F("\nNetmask: ")); cc3000.printIPdotsRev(netmask);
+  {*/
+    Serial.print(F("\nIP Addr: \n")); cc3000.printIPdotsRev(ipAddress);
+    /*Serial.print(F("\nNetmask: ")); cc3000.printIPdotsRev(netmask);
     Serial.print(F("\nGateway: ")); cc3000.printIPdotsRev(gateway);
     Serial.print(F("\nDHCPsrv: ")); cc3000.printIPdotsRev(dhcpserv);
     Serial.print(F("\nDNSserv: ")); cc3000.printIPdotsRev(dnsserv);
-    Serial.println();
+    Serial.println();*/
     return true;
-  }
+  //}
 }
 
 
 
 // switch alarm off using Alarm off button
-int request(Adafruit_CC3000_ClientRef cl)
+byte request(Adafruit_CC3000_ClientRef cl)
 {
     
     String myreq = parserequest();
@@ -182,13 +178,13 @@ int request(Adafruit_CC3000_ClientRef cl)
           }
           else if (myreq.substring(9).compareTo(two_req) == 0) {
             system_status = 1;
-            Serial.println(F("System is armed."));
+            //Serial.println(F("System is armed."));
             html_update(cl);
             return 0;
           }
           else if (myreq.substring(9).compareTo(three_req) == 0) {
             alarm_status = 0;
-            Serial.println(F("Alarm turned off."));
+            //Serial.println(F("Alarm turned off."));
             html_update(cl);
             return 0;
           }
@@ -201,12 +197,12 @@ int request(Adafruit_CC3000_ClientRef cl)
 
 //parses HTTP_req, returns only request string
 String parserequest() {
-  int j;
+  short j;
   String get = "GET";
   String req;
   if (HTTP_req.startsWith(get)) {
     //Serial.println(F("Received a GET tag from client"));
-    for (j=4;j<HTTP_req.indexOf('\n');j++) { //less than 20 for now, find suitable value
+    for ( j = 4 ; j < HTTP_req.indexOf('\n') ; j++) { //less than 20 for now, find suitable value
        if (HTTP_req[j] == ' '){
          break;
        }
@@ -219,10 +215,6 @@ String parserequest() {
   }  
 }
 
-
-
-
-
 //html pages
 void html_login(Adafruit_CC3000_ClientRef myclient) {
   myclient.fastrprintln(F("<form method=\"get\">"));
@@ -230,11 +222,6 @@ void html_login(Adafruit_CC3000_ClientRef myclient) {
   myclient.fastrprintln(F("<input type=\"submit\" value=\"Login\">"));
   myclient.fastrprintln(F("</form>"));
 }  
-
-
-
-
-
 
 void html_update(Adafruit_CC3000_ClientRef myclient){
   if (system_status == 0) {
@@ -259,14 +246,28 @@ void html_update(Adafruit_CC3000_ClientRef myclient){
   myclient.fastrprintln(F("<p>3 = turn off alarm</p>"));
 }
 
-
-
-
-
 void html_wrongpass(Adafruit_CC3000_ClientRef myclient) {
   myclient.fastrprintln(F("<form method=\"get\">"));
   myclient.fastrprintln(F("Password: <input type=\"text\" name=\"pass\" ><br>"));
   myclient.fastrprintln(F("<input type=\"submit\" value=\"Login\">"));
-  myclient.fastrprintln(F("<p> Wrong password. Please try again. </p>"));
-  myclient.fastrprintln(F("</form>"));  
+  //myclient.fastrprintln(F("<p> Wrong password. Please try again. </p>"));
+  myclient.fastrprintln(F("</form>"));
+}
+
+void processRecentImage(Adafruit_CC3000_ClientRef cl){
+  char result[40];
+  memset(result, '\0', 40);
+  char filename[13];
+  for (int i = 30000; i >= 0 ; i--) { // the maximum number of pictures assuming ~50kB/photo
+      sprintf(filename, "IMG%05d.JPG", i);
+      // create if does not exist, do not open existing, write, sync after write
+      if (SD.exists(filename)) {
+          break;
+      }
+  }
+  strcpy(result, "<img src=\"");
+  strcat(result, filename);
+  strcat(result, "\" alt=\"Security\">");
+  //(result = <img src="IMG00000.JPG" alt="Security">) followed by null
+  html_update(cl);
 }
