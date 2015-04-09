@@ -8,7 +8,7 @@
 //use software serial
 SoftwareSerial cameraconnection(2,7);//Rx, Tx
 VC0706 cam = VC0706(&cameraconnection);
-LiquidCrystal lcd(A0, A1, A2, A3, A4, A5);
+LiquidCrystal lcd(14, 15, 16, 17, 18, 19); //use 14-19 for analog pins acting as digital
 
 const byte LED_R = 3;
 const byte LED_G = 6;

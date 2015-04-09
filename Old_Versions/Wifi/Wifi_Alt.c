@@ -3,6 +3,8 @@
 #include <Adafruit_CC3000.h>
 #include <SPI.h>
 #include "utility/debug.h"
+#include <SD.h>
+#define SS_SD 10
 
 const int IRQ = 3;
 const int VBAT = 5;
@@ -25,6 +27,8 @@ void setup()
 {
   Serial.begin(9600);
   Serial.println(F("Hello, CC3000!\n")); 
+  
+  SD.begin(SS_SD);
 
   Serial.print(F("Free RAM: ")); 
   Serial.println(getFreeRam(), DEC);
@@ -261,10 +265,19 @@ void html_wrongpass(Adafruit_CC3000_ClientRef myclient) {
 String processRecentImage(){
   String result[40];
   memset(result, '\0', 40);
+  
+  char filename[13];
+  for (int i = 30000; i >= 0 ; i--) { // the maximum number of pictures assuming ~50kB/photo
+      sprintf(filename, "IMG%05d.JPG", i);
+      // create if does not exist, do not open existing, write, sync after write
+      if (SD.exists(filename)) {
+          break;
+      }
+  }
+    
   strcpy(result, "<img src=\"");
-  //get name of file
+  strcat(result, filename);
   strcat(result, "\" alt=\"Security\">");
   //(result = <img src="IMG00000.JPG" alt="Security">) followed by null
   return result;
-  
 }
