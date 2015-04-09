@@ -81,7 +81,7 @@ boolean takePic(){
 void testPic(){
   if (! cam.takePicture()){ 
     Serial.println("Failed to snap!");
-  } else {
+  } else {`
     Serial.println("Picture was taken correctly!");
   }  
 }
