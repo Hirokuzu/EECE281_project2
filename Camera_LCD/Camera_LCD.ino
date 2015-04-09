@@ -4,7 +4,7 @@
 #include <SPI.h>
 
 #define TIME_DELAY 5000 //5 second delay when taking photos
-#define SS_SD 10
+#define SS_SD 10 // not neede
 //use software serial
 SoftwareSerial cameraconnection(2,7);//Rx, Tx
 VC0706 cam = VC0706(&cameraconnection);
@@ -27,7 +27,8 @@ void setup(){
   updateLCD();
   
   Serial.begin(115200);
-  
+  lcd.begin(16,2);
+  lcd.print("Initializing...");
   cam.begin(BaudRate_19200);
   char *reply = cam.getVersion();
   if (reply == 0) {
@@ -55,10 +56,12 @@ void serialEvent() {
   while(Serial.available()) {
     char current = (char)Serial.read();
     message += current;
+    Serial.print(current);
     if(current == '\n') {
       process_buffer(message);
+
+      message = ""; // reset the message;
     }
-    message = ""; // reset the message;
   }
 }
 
@@ -79,7 +82,7 @@ boolean takePic(){
     uint8_t bytesToRead = min(32, jpglen);
     buffer = cam.readPicture(bytesToRead);
     for(int i = 0; i < bytesToRead; i++) {
-      Serial.write(*(char *) buffer+i);
+      Serial.println(*(char *) buffer+i);
     }
     Serial.flush();
     jpglen -= bytesToRead;
@@ -157,30 +160,40 @@ int process_buffer(String toProcess) {
       alarm_flag = false;
       is_armed = false;
   } else if(toProcess.startsWith("1")) {
+    Serial.println("Got a 1");
       alarm_flag = true;
       is_armed = false;
   } else if(toProcess.startsWith("2")) {
+        Serial.println("Got a 2");
       alarm_flag = false;
       is_armed = true;
   } else if(toProcess.startsWith("3")) {
+        Serial.println("Got a 3");
       alarm_flag = true;
       is_armed = true;
   } else if(toProcess.startsWith("b")) {
+        Serial.println("Got a b");
       if(num_presses > 0)
         num_presses--;
   } else if(toProcess.startsWith("c")) {
+        Serial.println("Got a c");
       num_presses = 0;
       corr_pass = true;
   } else if(toProcess.startsWith("i")) {
+        Serial.println("Got a i");
       num_presses = 0;
       corr_pass = false;
   } else if(toProcess.startsWith("k")) {
+        Serial.println("Got a k");
       num_presses++;
   } else if(toProcess.startsWith("w")) {
+        Serial.println("Got a w");
       num_presses = 0;
   } else if(toProcess.startsWith("lcd:")) {
-      lcdPrint(toProcess.subString(toProcess.indexOf(":") + 1));
+      lcdPrint(toProcess.substring(toProcess.indexOf(":") + 1));
       // do nothing
+  } else {
+    Serial.println("Got nothing");
   }
   lcd_update = true;
 }
