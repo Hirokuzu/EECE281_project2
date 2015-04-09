@@ -8,29 +8,31 @@ const int IRQ = 3;
 const int VBAT = 5;
 const int CS = 10;
 Adafruit_CC3000 cc3000 = Adafruit_CC3000(CS, IRQ, VBAT, SPI_CLOCK_DIVIDER);
-#define WLAN_SSID       "Brian White"
-#define WLAN_PASS       "t6c3dprg2n2p"
+#define WLAN_SSID       "EECE281_Group7"
+#define WLAN_PASS       "carrots281"
 #define WLAN_SECURITY   WLAN_SEC_WPA2 //either WLAN_SEC_UNSEC, WLAN_SEC_WEP, WLAN_SEC_WPA or WLAN_SEC_WPA2
 
 Adafruit_CC3000_Server server(80);
 
-char *HTTP_req;             // string that stores the HTTP request
+String HTTP_req;             // string that stores the HTTP request
 boolean alarm_status = 0;   // 0 = off, 1 = on, only model can turn on alarm, alarm
                             // can be turned off through internet and maybe keypad?
 boolean login_verification = 0; //0 = not verified, 1 = verified
 boolean system_status = 0;  //0 = system not armed, 1 = system armed
+String pass = "group10";
 
 void setup()
 {
   Serial.begin(9600);
   Serial.println(F("Hello, CC3000!\n")); 
 
-  Serial.print("Free RAM: "); Serial.println(getFreeRam(), DEC);
+  Serial.print(F("Free RAM: ")); 
+  Serial.println(getFreeRam(), DEC);
   //Initialize
-  Serial.println("Initializing CC3000...");
+  Serial.println(F("Initializing CC3000..."));
   if (!cc3000.begin())
   {
-    Serial.println(F("Iniatializing failed"));
+    Serial.println(F("Initializing failed"));
     while(1);
   }
   
@@ -74,32 +76,31 @@ void setup()
 void loop()
 {
     Adafruit_CC3000_ClientRef client = server.available();
-    int i = 0;
+    
     if (client) {  // got client?
         boolean currentLineIsBlank = true;
         while (client.connected()) {
             if (client.available()) {   // client data available to read
                 char c = client.read(); // read 1 byte (character) from client
-                HTTP_req[i] = c;// save the HTTP request 1 char at a time
-                i++;
+                HTTP_req += c; // save the HTTP request 1 char at a time
                 // last line of client request is blank and ends with \n
                 // respond to client only after last line received
                 if (c == '\n' && currentLineIsBlank) {
-                    client.println("HTTP/1.1 200 OK");
-                    client.println("Content-Type: text/html");
-                    client.println("Connection: close");
+                    client.fastrprintln(F("HTTP/1.1 200 OK"));
+                    client.fastrprintln(F("Content-Type: text/html"));
+                    client.fastrprintln(F("Connection: close"));
                     client.println();
-                    client.println("<!DOCTYPE html>");
-                    client.println("<html>");
-                    client.println("<head>");
-                    client.println("<title>EECE 281 Project 2</title>");
-                    client.println("</head>");
-                    client.println("<body>");
-                    client.println("<h1>My Alarm System</h1>");
-                    //request(client);
-                    client.println("</body>");
-                    client.println("</html>"); 
-                    Serial.println("HTTP_req");
+                    client.fastrprintln(F("<!DOCTYPE html>"));
+                    client.fastrprintln(F("<html>"));
+                    client.fastrprintln(F("<head>"));
+                    client.fastrprintln(F("<title>EECE 281 Project 2</title>"));
+                    client.fastrprintln(F("</head>"));
+                    client.fastrprintln(F("<body>"));
+                    client.fastrprintln(F("<h1>My Alarm System</h1>"));
+                    request(client);
+                    client.fastrprintln(F("</body>"));
+                    client.fastrprintln(F("</html>"));
+                    HTTP_req = "";
                     break;
                 }
                 // every line of text received from the client ends with \r\n
@@ -141,99 +142,114 @@ bool displayConnectionDetails(void)
   }
 }
 
-/*
+
 // switch alarm off using Alarm off button
-void request(Adafruit_CC3000_ClientRef cl)
+int request(Adafruit_CC3000_ClientRef cl)
 {
-    char *request = parserequest(HTTP_req);
     
-    if ("initial connect") {
-        //html login page
+    String myreq = parserequest();
+    String init_req = "/";
+    String pass_req = "/?pass=";
+    String act_req = "/?action=";
+    String one_req = "1";
+    String two_req = "2";
+    String three_req = "3";
+    
+    if (myreq.compareTo(init_req) == 0) {
+       html_login(cl);
+       return 0;
     }
-    else if ("initial login"){
-      if (correct) {
+    
+    else if (myreq.startsWith(pass_req)){
+      if (myreq.substring(7).compareTo(pass) == 0) {
         login_verification = 1;
-        //html update page own function
+        html_update(cl);
+        return 0;
       }
       else
          login_verification = 0;
-         //html wrong pass
+         html_wrongpass(cl);
+         return 0;
     }
     
-    if (login_verification == 0) {
-      if ("update") {
-        //html update page 
-      }
-      else if ("arm system") {
-        system_status = 1;
-        //html update
-      }
-      else if ("turn alarm off") {
-        alarm_status = 0;
-        //html update
-      }
-    }            
+    
+    if (login_verification == 1) {
+      if (myreq.startsWith(act_req)) {
+          if (myreq.substring(9).compareTo(one_req) == 0) {
+            html_update(cl);
+            return 0; 
+          }
+          else if (myreq.substring(9).compareTo(two_req) == 0) {
+            system_status = 1;
+            Serial.println(F("System is armed."));
+            html_update(cl);
+            return 0;
+          }
+          else if (myreq.substring(9).compareTo(three_req) == 0) {
+            alarm_status = 0;
+            Serial.println(F("Alarm turned off."));
+            html_update(cl);
+            return 0;
+          }
+      }  
+    }
 }
-*/
+
 //parses HTTP_req, returns only request string
-char* parserequest(char *HTTP_req) {
+String parserequest() {
   int j;
-  int k;
-  char *tag;
-  char *req;
-  for (j=0;j<3;j++) {
-    tag[j]=HTTP_req[j];
-  }
-  if ((strcmp(tag,"GET")) == 0) {
-    Serial.println("Received a GET tag from client");
-    for (k=4;k<20;k++) { //less than 20 for now, find suitable value
-       if (HTTP_req[k] == ' '){
+  String get = "GET";
+  String req;
+  if (HTTP_req.startsWith(get)) {
+    //Serial.println(F("Received a GET tag from client"));
+    for (j=4;j<HTTP_req.indexOf('\n');j++) { //less than 20 for now, find suitable value
+       if (HTTP_req[j] == ' '){
          break;
        }
-       req[k-4] = HTTP_req[k];
+       req += HTTP_req[j];
     }
     return req;
   }
   else {
-    Serial.println("Did not receive a GET tag");    
-  }   
+    Serial.println(F("Did not receive a GET tag"));  
+  }  
 }
 
 //html pages
 void html_login(Adafruit_CC3000_ClientRef myclient) {
-  myclient.println("<form method=\"get\">");
-  myclient.println("Password: <input type=\"text\" name=\"pass\" ><br>");
-  myclient.println("<input type=\"submit\" value=\"Login\">");
-  myclient.println("</form>");
+  myclient.fastrprintln(F("<form method=\"get\">"));
+  myclient.fastrprintln(F("Password: <input type=\"text\" name=\"pass\" ><br>"));
+  myclient.fastrprintln(F("<input type=\"submit\" value=\"Login\">"));
+  myclient.fastrprintln(F("</form>"));
 }  
 
 void html_update(Adafruit_CC3000_ClientRef myclient){
   if (system_status == 0) {
-     myclient.println("<p>System is not armed.</p>");
+     myclient.fastrprintln(F("<p>System is not armed.</p>"));
   } 
   else {
-     myclient.println("<p>System is armed.</p>");
+     myclient.fastrprintln(F("<p>System is armed.</p>"));
   }
 
   if (alarm_status == 0) {
-     myclient.println("<p>Everything is ok :)</p>");
+     myclient.fastrprintln(F("<p>Everything is ok :)</p>"));
   }
   else {
-     myclient.println("<p>OMG!! ALARM TRIGGERED! D:/p>");
+     myclient.fastrprintln(F("<p>OMG!! ALARM TRIGGERED! D:/p>"));
   }
-  myclient.println("<form method=\"get\">");
-  myclient.println("Action: <input type=\"text\" name=\"action\" ><br>");
-  myclient.println("<input type=\"submit\" value=\"Go\">");
-  myclient.println("</form>");
-  myclient.println("<p>1 = update status</p>");
-  myclient.println("<p>2 = arm the system</p>");
-  myclient.println("<p>3 = turn off alarm</p>");
+  myclient.fastrprintln(F("<form method=\"get\">"));
+  myclient.fastrprintln(F("Action: <input type=\"text\" name=\"action\" ><br>"));
+  myclient.fastrprintln(F("<input type=\"submit\" value=\"Go\">"));
+  myclient.fastrprintln(F("</form>"));
+  myclient.fastrprintln(F("<p>1 = update status</p>"));
+  myclient.fastrprintln(F("<p>2 = arm the system</p>"));
+  myclient.fastrprintln(F("<p>3 = turn off alarm</p>"));
 }
 
 void html_wrongpass(Adafruit_CC3000_ClientRef myclient) {
-  myclient.println("<form method=\"get\">");
-  myclient.println("Password: <input type=\"text\" name=\"pass\" ><br>");
-  myclient.println("<input type=\"submit\" value=\"Login\">");
-  myclient.println("<p> Wrong password. Please try again. </p>");
-  myclient.println("</form>");  
+  myclient.fastrprintln(F("<form method=\"get\">"));
+  myclient.fastrprintln(F("Password: <input type=\"text\" name=\"pass\" ><br>"));
+  myclient.fastrprintln(F("<input type=\"submit\" value=\"Login\">"));
+  myclient.fastrprintln(F("<p> Wrong password. Please try again. </p>"));
+  myclient.fastrprintln(F("</form>"));  
 }
