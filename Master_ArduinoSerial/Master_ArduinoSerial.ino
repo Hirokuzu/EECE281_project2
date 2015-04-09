@@ -24,21 +24,20 @@ const int MIN_DISTANCE = 27;
 /* VARIABLE DECLARATIONS */
 boolean isSystemArmed = false; //Global flag for alarm state
 boolean isSystemBreached = false; //Global flag for alarm breach
+boolean isLoginVerified = false; //Global flag for login verification
 byte entryIndex = 0; //Indicates how many keys user has entered
 byte incorrectAttempts = 0;
 
 //Wifi setup
 Adafruit_CC3000 cc3000 = Adafruit_CC3000(CS, IRQ, VBAT, SPI_CLOCK_DIVIDER);
-#define WLAN_SSID       "mywifi"
-#define WLAN_PASS       "yaywifi21"
+#define WLAN_SSID       "EECE281_Group10"
+#define WLAN_PASS       "carrots281"
 #define WLAN_SECURITY   WLAN_SEC_WPA2 //either WLAN_SEC_UNSEC, WLAN_SEC_WEP, WLAN_SEC_WPA or WLAN_SEC_WPA2
 
 Adafruit_CC3000_Server server(80);
 
 String HTTP_req;          // string that stores the HTTP request
-boolean alarm_status = 1;   // 0 = off, 1 = on, only model can turn on alarm, alarm
-                            // can be turned off through internet and maybe keypad?
-
+String pass = "group10";  // password for webpage login
 
 Password password = Password( "4321" );
 
@@ -75,7 +74,7 @@ void setup()
   Serial.println("Initializing CC3000...");
   if (!cc3000.begin())
   {
-    Serial.println(F("Iniatializing failed"));
+    Serial.println(F("Initializing failed"));
     while(1);
   }
   
@@ -129,30 +128,21 @@ void loop()
               // last line of client request is blank and ends with \n
               // respond to client only after last line received
               if (c == '\n' && currentLineIsBlank) {
-                  
-                  // send a standard http response header
-                  client.println("HTTP/1.1 200 OK");
-                  client.println("Content-Type: text/html");
-                  client.println("Connection: close");
+                  client.fastrprintln(F("HTTP/1.1 200 OK"));
+                  client.fastrprintln(F("Content-Type: text/html"));
+                  client.fastrprintln(F("Connection: close"));
                   client.println();
-                  // send web page
-                  client.println("<!DOCTYPE html>");
-                  client.println("<html>");
-                  client.println("<head>");
-                  client.println("<title>EECE 281 Project 2</title>");
-                  client.println("</head>");
-                  client.println("<body>");
-                  client.println("<h1>ALARM TRIGGERED</h1>");
-                  client.println("<p>The alarm in your house has been triggered.</p>");
-                  client.println("<p> If this is a possible break-in, please call 911. </p>");
-                  client.println("<p> Press the button below to turn it off. </p>");
-                  client.println("<form action=\"\">");
-                  button(client);
-                  client.println("</form>");
-                  client.println("</body>");
-                  client.println("</html>");
-                  
-                  HTTP_req = "";    // finished with request, empty string
+                  client.fastrprintln(F("<!DOCTYPE html>"));
+                  client.fastrprintln(F("<html>"));
+                  client.fastrprintln(F("<head>"));
+                  client.fastrprintln(F("<title>EECE 281 Project 2</title>"));
+                  client.fastrprintln(F("</head>"));
+                  client.fastrprintln(F("<body>"));
+                  client.fastrprintln(F("<h1>My Alarm System</h1>"));
+                  request(client);
+                  client.fastrprintln(F("</body>"));
+                  client.fastrprintln(F("</html>"));
+                  HTTP_req = "";
                   break;
               }
               // every line of text received from the client ends with \r\n
@@ -216,26 +206,113 @@ void loop()
 }
 
 // switch alarm off using Alarm off button
-void button(Adafruit_CC3000_ClientRef cl)
+int request(Adafruit_CC3000_ClientRef cl)
 {
-    if (HTTP_req[6] == '*') {  // see if button was pressed
-        // "*alarmcontrol=off" was detected, means button was pressed, turn alarm off
-        
-        alarm_status = 0; //alarm off
-    }
-    else if (HTTP_req[6] == 'H'){ //button wasn't pressed, specific parameter so that favicon.ico request is ignored
-        alarm_status = 1;
+    
+    String myreq = parserequest();
+    String init_req = "/";
+    String pass_req = "/?pass=";
+    String act_req = "/?action=";
+    String one_req = "1";
+    String two_req = "2";
+    String three_req = "3";
+    
+    if (myreq.compareTo(init_req) == 0) {
+       html_login(cl);
+       return 0;
     }
     
-    if (alarm_status == 1) {    //alarm on
-        Serial.print("Alarm is on.");
-        cl.println(" <input type=\"checkbox\" name=\"*alarmcontrol\" value=\"off\" onclick=\"submit()\">Turn off alarm");
+    else if (myreq.startsWith(pass_req)){
+      if (myreq.substring(7).compareTo(pass) == 0) {
+        isLoginVerified = true;
+        html_update(cl);
+        return 0;
+      }
+      else
+         isLoginVerified = false;
+         html_wrongpass(cl);
+         return 0;
     }
-    else {              // alarm off
-        Serial.print("Alarm is off.");
-        Serial.println('0'); //System status displayed as unarmed, unbreached
-        cl.println("<p> [ALARM TURNED OFF] </p>");
+    
+    if (isLoginVerified == true) {
+      if (myreq.startsWith(act_req)) {
+          if (myreq.substring(9).compareTo(one_req) == 0) {
+            html_update(cl);
+            return 0; 
+          }
+          else if (myreq.substring(9).compareTo(two_req) == 0) {
+            isSystemArmed = true;
+            Serial.println(F("System is armed."));
+            html_update(cl);
+            return 0;
+          }
+          else if (myreq.substring(9).compareTo(three_req) == 0) {
+            isSystemBreached = false;
+            Serial.println(F("Alarm turned off."));
+            html_update(cl);
+            return 0;
+          }
+      }  
     }
+}
+
+//parses HTTP_req, returns only request string
+String parserequest() {
+  int j;
+  String get = "GET";
+  String req;
+  if (HTTP_req.startsWith(get)) {
+    //Serial.println(F("Received a GET tag from client"));
+    for (j=4;j<HTTP_req.indexOf('\n');j++) { //less than 20 for now, find suitable value
+       if (HTTP_req[j] == ' '){
+         break;
+       }
+       req += HTTP_req[j];
+    }
+    return req;
+  }
+  else {
+    Serial.println(F("Did not receive a GET tag"));  
+  }  
+}
+
+//html pages
+void html_login(Adafruit_CC3000_ClientRef myclient) {
+  myclient.fastrprintln(F("<form method=\"get\">"));
+  myclient.fastrprintln(F("Password: <input type=\"text\" name=\"pass\" ><br>"));
+  myclient.fastrprintln(F("<input type=\"submit\" value=\"Login\">"));
+  myclient.fastrprintln(F("</form>"));
+}  
+
+void html_update(Adafruit_CC3000_ClientRef myclient){
+  if (isSystemArmed == false) {
+     myclient.fastrprintln(F("<p>System is not armed.</p>"));
+  } 
+  else {
+     myclient.fastrprintln(F("<p>System is armed.</p>"));
+  }
+
+  if (isSystemBreached == false) {
+     myclient.fastrprintln(F("<p>Your house is safe :)</p>"));
+  }
+  else {
+     myclient.fastrprintln(F("<p>OMG!! ALARM TRIGGERED! D:/p>"));
+  }
+  myclient.fastrprintln(F("<form method=\"get\">"));
+  myclient.fastrprintln(F("Action: <input type=\"text\" name=\"action\" ><br>"));
+  myclient.fastrprintln(F("<input type=\"submit\" value=\"Go\">"));
+  myclient.fastrprintln(F("</form>"));
+  myclient.fastrprintln(F("<p>1 = update status</p>"));
+  myclient.fastrprintln(F("<p>2 = arm the system</p>"));
+  myclient.fastrprintln(F("<p>3 = turn off alarm</p>"));
+}
+
+void html_wrongpass(Adafruit_CC3000_ClientRef myclient) {
+  myclient.fastrprintln(F("<form method=\"get\">"));
+  myclient.fastrprintln(F("Password: <input type=\"text\" name=\"pass\" ><br>"));
+  myclient.fastrprintln(F("<input type=\"submit\" value=\"Login\">"));
+  myclient.fastrprintln(F("<p> Wrong password. Please try again. </p>"));
+  myclient.fastrprintln(F("</form>"));  
 }
 
 // Tries to read the IP address and other connection details
